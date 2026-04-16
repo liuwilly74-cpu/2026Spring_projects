@@ -1,31 +1,23 @@
 """
-clean_category_data.py
-======================
-Clean Data/categories.csv: map all 315 multilingual category variants
+categories.csv: map all 315 multilingual category variants
 to the 46 canonical English Steam categories, deduplicate rows that
 collapse to the same (app_id, category) pair after mapping, and write:
 
-  - Cleaned_Data/categories_en.csv  : cleaned (app_id, category) table (English only)
-  - distinct_categories.txt : data-quality report + distinct category list
+  - Cleaned_Data/categories_en.csv: cleaned (app_id, category) table (English only)
+  - distinct_categories.txt: data-quality report + distinct category list
 
 Data quality issue found:
-    The 315 raw "distinct" categories are actually ~46 standard Steam
+    The 315 raw "distinct" categories are actually 46 standard Steam
     categories translated into 16 languages (EN/DE/NL/FR/ES/IT/PT/PL/
     FI/DA/NO/CZ/RU/UA/JA/ZH).
 
 Pipeline:
-    Data/categories.csv ──► Cleaned_Data/categories_en.csv
-                        ──► distinct_categories.txt
-
-Usage::
-
-    python clean_category_data.py
+    Data/categories.csv --> Cleaned_Data/categories_en.csv
+                        --> distinct_categories.txt
 """
 
 import pandas as pd
 
-
-# File paths
 INPUT_FILE = 'Data/categories.csv'
 OUTPUT_CLEAN_CSV = 'Cleaned_Data/categories_en.csv'
 OUTPUT_REPORT_TXT = 'Cleaned_Data/distinct_categories.txt'
@@ -434,19 +426,18 @@ CATEGORY_MAPPING: dict[str, str] = {
 # Helper functions
 def load_categories_csv(filepath: str) -> pd.DataFrame:
     """Read categories.csv (UTF-8) and return a typed DataFrame.
-
     filepath : str
         Path to the CSV file.
-
     pd.DataFrame
-        ``app_id`` cast to int, ``category`` as str; calls exit() on failure.
+        'app_id' as int, 'category' as str.
         
     >>> import tempfile, os
     >>> tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.csv',
     ...                                   delete=False, encoding='utf-8')
     >>> _ = tmp.write('app_id,category\\n1,Single-player\\n2,Multi-player\\n')
     >>> tmp.close()
-    >>> df = load_categories_csv(tmp.name)
+    >>> df = load_categories_csv(tmp.name)  # doctest: +ELLIPSIS
+    Loaded 2 rows from '...'.
     >>> df['app_id'].tolist()
     [1, 2]
     >>> os.unlink(tmp.name)
@@ -473,7 +464,6 @@ def normalize_whitespace(series: pd.Series) -> pd.Series:
 
     series : pd.Series
         String Series to normalise.
-
     pd.Series
         Series with whitespace normalised.
 
@@ -488,14 +478,13 @@ def normalize_whitespace(series: pd.Series) -> pd.Series:
 def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
     """Replace foreign-language categories with their canonical English form.
 
-    Values already in English (not present in ``mapping``) are returned
-    unchanged, so the function is safe to call on a mixed-language Series.
+    Values already in English are returned unchanged, so the function is safe to
+    call on a mixed-language Series.
 
     series : pd.Series
         Whitespace-normalised category column.
     mapping : dict
         ``{foreign variant: canonical English}`` lookup dictionary.
-
     pd.Series
         Series with foreign values replaced; unknown values kept as-is.
 
@@ -508,12 +497,7 @@ def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
     return series.map(lambda x: mapping.get(x, x))
 
 
-def quality_report(
-    df_raw: pd.DataFrame,
-    df_clean: pd.DataFrame,
-    english_cats: set,
-    unmapped: list,
-) -> str:
+def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame, english_cats: set, unmapped: list) -> str:
     """Build a formatted data-quality report string.
     """
     sep = '=' * 60
@@ -567,13 +551,9 @@ def quality_report(
     return '\n'.join(lines)
 
 
-
-# Main Execution
 if __name__ == '__main__':
-    # Load raw data
     df = load_categories_csv(INPUT_FILE)
     df_raw = df.copy()
-
     df['category'] = normalize_whitespace(df['category'])
 
     # Map every foreign-language variant to its canonical English name
