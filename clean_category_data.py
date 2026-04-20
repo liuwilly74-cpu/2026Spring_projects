@@ -12,15 +12,15 @@ Data quality issue found:
     FI/DA/NO/CZ/RU/UA/JA/ZH).
 
 Pipeline:
-    Data/categories.csv --> Cleaned_Data/categories_en.csv
-                        --> distinct_categories.txt
+    Data/categories.csv --> Cleaned_Data/categories_clean.csv
+                        --> categories_quality_report.txt
 """
 
 import pandas as pd
 
 INPUT_FILE = 'Data/categories.csv'
-OUTPUT_CLEAN_CSV = 'Cleaned_Data/categories_en.csv'
-OUTPUT_REPORT_TXT = 'Cleaned_Data/distinct_categories.txt'
+OUTPUT_CLEAN_CSV = 'Cleaned_Data/categories_clean.csv'
+OUTPUT_REPORT_TXT = 'Cleaned_Data/categories_quality_report.txt'
 
 
 # Canonical English category set (46 entries)
@@ -484,7 +484,7 @@ def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
     series : pd.Series
         Whitespace-normalised category column.
     mapping : dict
-        ``{foreign variant: canonical English}`` lookup dictionary.
+        {foreign variant: canonical English}`` lookup dictionary.
     pd.Series
         Series with foreign values replaced; unknown values kept as-is.
 
@@ -498,8 +498,6 @@ def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
 
 
 def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame, english_cats: set, unmapped: list) -> str:
-    """Build a formatted data-quality report string.
-    """
     sep = '=' * 60
     lines = [
         sep,
@@ -578,7 +576,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Error saving CSV: {e}")
 
-    # Write quality report and distinct category list to txt
     report = quality_report(df_raw, df, ENGLISH_CATEGORIES, unmapped_cats)
     try:
         with open(OUTPUT_REPORT_TXT, 'w', encoding='utf-8') as f:
