@@ -148,10 +148,39 @@ def clean_reviews_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> str:
+    """Build a formatted data-quality report following the unified Wide-table review template.
+
+    Parameters
+    ----------
+    df_raw : pd.DataFrame
+        Original DataFrame before cleaning.
+    df_clean : pd.DataFrame
+        Cleaned DataFrame after normalization and column drops.
+
+    Returns
+    -------
+    str
+        Multi-line report string.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> cols = ['app_id', 'positive', 'negative', 'total',
+    ...         'review_score', 'review_score_description', 'metacritic_score']
+    >>> raw = pd.DataFrame([[1, '10', '2', '12', '9', 'Very Positive', '85']], columns=cols)
+    >>> clean = clean_reviews_dataframe(raw.copy())
+    >>> '[1. Raw Data Stats]' in quality_report(raw, clean)
+    True
+    """
     sep = '=' * 60
+    n_raw = len(df_raw)
+    n_clean = len(df_clean)
 
     raw_dupes = int(df_raw.duplicated().sum())
-    raw_app_dupes = int(df_raw.duplicated(subset=['app_id']).sum()) if 'app_id' in df_raw.columns else 0
+    raw_app_dupes = (
+        int(df_raw.duplicated(subset=['app_id']).sum())
+        if 'app_id' in df_raw.columns else 0
+    )
 
     placeholder_counts = {
         col: int(df_raw[col].astype('string').str.strip().isin(MISSING_TOKENS).sum())
@@ -165,13 +194,15 @@ def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> str:
             & df_clean['negative'].notna()
             & df_clean['total'].notna()
         )
-        total_mismatch = int((df_clean.loc[mask, 'positive'] + df_clean.loc[mask, 'negative'] != df_clean.loc[mask, 'total']).sum())
+        total_mismatch = int(
+            (
+                df_clean.loc[mask, 'positive'] + df_clean.loc[mask, 'negative']
+                != df_clean.loc[mask, 'total']
+            ).sum()
+        )
 
     descriptions = (
-        df_clean['review_score_description']
-        .dropna()
-        .value_counts()
-        .head(15)
+        df_clean['review_score_description'].dropna().value_counts().head(15)
         if 'review_score_description' in df_clean.columns
         else pd.Series(dtype='Int64')
     )
@@ -181,61 +212,64 @@ def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> str:
         'Data/reviews.csv  —  QUALITY REPORT',
         sep,
         '',
-        '[Raw Data Stats]',
-        f'  Total rows              : {len(df_raw):,}',
-        f'  Total columns           : {len(df_raw.columns)}',
-        f'  Full duplicate rows     : {raw_dupes:,}',
-        f'  Duplicate app_id rows   : {raw_app_dupes:,}',
+        '[1. Raw Data Stats]',
+        f'  Total rows       : {n_raw:,}',
+        f'  Total columns    : {len(df_raw.columns)}',
+        f'  Duplicate rows   : {raw_dupes:,}',
+        f'  Duplicate app_id : {raw_app_dupes:,}',
         '',
-        '[Known File Issues]',
-        '  1) Escaped quotes (\\") inside HTML snippets',
-        '  2) Multiline text in the reviews column (column dropped)',
-        '  3) Missing value placeholder token: \\N (parsed as N)',
-        '',
-        '[Dropped Columns]',
-        f'  {", ".join(DROP_COLUMNS)}',
-        '',
-        '[Missing Token Counts in Raw Data]',
+        '[2. Missing Values in Raw Data]',
     ]
     for col in df_raw.columns:
-        lines.append(f'  {col}: {placeholder_counts[col]:,}')
+        cnt = placeholder_counts[col]
+        pct = cnt / n_raw * 100 if n_raw else 0
+        lines.append(f'  {col:<40}: {cnt:,}  ({pct:.1f}%)')
 
+    retained = [c for c in df_raw.columns if c not in DROP_COLUMNS]
     lines += [
         '',
-        '[Numeric Integrity]',
-        f'  Rows checked for positive+negative=total : {len(df_clean):,}',
-        f'  Mismatch rows                             : {total_mismatch:,}',
+        '[3. Cleaned Output]',
+        f'  Columns dropped   : {len(DROP_COLUMNS)}  ({", ".join(DROP_COLUMNS)})',
+        f'  Columns retained  : {len(retained)}',
+        f'  Rows before cleaning  : {n_raw:,}',
+        f'  Rows after cleaning   : {n_clean:,}',
+        f'  Rows removed          : {n_raw - n_clean:,}',
+        '',
+        '[4. Numeric Integrity]',
+        f'  positive+negative=total mismatch : {total_mismatch:,}',
     ]
 
     if 'review_score' in df_clean.columns:
         lt0 = int((df_clean['review_score'].fillna(0) < 0).sum())
         gt9 = int((df_clean['review_score'].fillna(0) > 9).sum())
-        lines += [
-            '  review_score out-of-range (<0 or >9)      : '
-            f'{lt0 + gt9:,}',
-        ]
+        lines.append(f'  review_score out-of-range (<0 or >9)       : {lt0 + gt9:,}')
 
     if 'metacritic_score' in df_clean.columns:
         lt0 = int((df_clean['metacritic_score'].fillna(0) < 0).sum())
         gt100 = int((df_clean['metacritic_score'].fillna(0) > 100).sum())
-        lines += [
-            '  metacritic_score out-of-range (<0 or >100): '
-            f'{lt0 + gt100:,}',
-        ]
+        lines.append(f'  metacritic_score out-of-range (<0 or >100) : {lt0 + gt100:,}')
 
-    lines += [
-        '',
-        '[Top review_score_description values]',
-    ]
+    lines += ['', '[5. Numeric Column Ranges]']
+    for col in NUMERIC_COLUMNS:
+        if col in df_clean.columns:
+            data = df_clean[col].dropna()
+            if not data.empty:
+                lines.append(
+                    f'  {col:<35}: min={data.min():<8}  '
+                    f'median={float(data.median()):<8.1f}  max={data.max()}'
+                )
+
+    lines += ['', '[6. Top review_score_description values]']
     for desc, cnt in descriptions.items():
-        lines.append(f'  {desc}: {cnt:,}')
+        pct = cnt / n_clean * 100 if n_clean else 0
+        lines.append(f'  {desc:<30}: {cnt:,}  ({pct:.1f}%)')
 
     lines += [
         '',
-        '[Cleaning Result]',
-        f'  Rows before cleaning : {len(df_raw):,}',
-        f'  Rows after cleaning  : {len(df_clean):,}',
-        f'  Rows removed         : {len(df_raw) - len(df_clean):,}',
+        '[7. Known File Issues]',
+        '  1) Escaped quotes (\\") inside HTML snippets.',
+        '  2) Multiline text in the reviews column (column dropped).',
+        '  3) Missing values encoded as \\N become "N" after escape-aware parsing.',
         '',
     ]
     return '\n'.join(lines)

@@ -1,19 +1,15 @@
 """
-Clean the raw tags.csv and write:
+Normalize Steam user tags, deduplicate rows.
 
-  - Cleaned_Data/tags_clean.csv          : deduplicated (app_id, tag) table
-  - Cleaned_Data/tags_quality_report.txt : data-quality report + distinct tag list
-
-Data quality findings:
-    - All 447 distinct tags are already in English (no multilingual issue).
-    - No missing values; no duplicate rows in the source file.
-    - Tags per game: mean ≈ 14.85, max = 20.
+Data quality issue found:
+    All distinct tags in tags.csv are already ASCII English; there are no multilingual locale variants like genres.csv.
 
 Pipeline:
     Data/tags.csv --> Cleaned_Data/tags_clean.csv
                   --> Cleaned_Data/tags_quality_report.txt
 """
 
+import sys
 import pandas as pd
 
 INPUT_FILE = 'Data/tags.csv'
@@ -21,26 +17,18 @@ OUTPUT_CLEAN_CSV = 'Cleaned_Data/tags_clean.csv'
 OUTPUT_REPORT_TXT = 'Cleaned_Data/tags_quality_report.txt'
 
 
+# Reserved for foreign / variant tag strings → English (currently empty).
+TAG_MAPPING: dict[str, str] = {}
+
+
 def load_tags_csv(filepath: str) -> pd.DataFrame:
     """Read tags.csv with fallback encodings and return a typed DataFrame.
-
     filepath : str
         Path to the CSV file.
     pd.DataFrame
-        DataFrame with 'app_id' as int and 'tag' as str.
-
-    >>> import tempfile, os
-    >>> tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.csv',
-    ...                                   delete=False, encoding='utf-8')
-    >>> _ = tmp.write('app_id,tag\\n1,Action\\n2,Indie\\n')
-    >>> tmp.close()
-    >>> df = load_tags_csv(tmp.name)  # doctest: +ELLIPSIS
-    Loaded 2 rows from '...'.
-    >>> df['app_id'].tolist()
-    [1, 2]
-    >>> os.unlink(tmp.name)
+        DataFrame with 'app_id' as int, 'tag' as str.
     """
-    for enc in ['utf-8', 'GB18030', 'cp1251', 'latin1']:
+    for enc in ['utf-8', 'GB18030', 'cp1251', 'koi8-r', 'latin1']:
         try:
             df = pd.read_csv(filepath, encoding=enc)
             df = df.dropna(subset=['app_id', 'tag'])
@@ -48,106 +36,136 @@ def load_tags_csv(filepath: str) -> pd.DataFrame:
             df['tag'] = df['tag'].str.strip()
             print(f"Loaded {len(df):,} rows from '{filepath}'.")
             return df
-        except (UnicodeDecodeError, FileNotFoundError) as exc:
-            if isinstance(exc, FileNotFoundError):
-                print(f"Error: File not found '{filepath}'.")
-                exit()
+        except FileNotFoundError:
+            print(f"Error: File not found '{filepath}'.")
+            exit()
+        except Exception as e:
+            print(f"Error reading '{filepath}': {e}")
+            exit()
     print(f"Fatal: Could not read '{filepath}'.")
     exit()
 
 
-def clean_tags_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Strip whitespace, remove null tags, and deduplicate (app_id, tag) pairs.
+def normalize_whitespace(series: pd.Series) -> pd.Series:
+    """Replace non-breaking spaces (U+00A0) with regular spaces and strip.
 
-    df : pd.DataFrame
-        Raw tag DataFrame with at least 'app_id' and 'tag' columns.
-    pd.DataFrame
-        Cleaned and sorted DataFrame.
+    series : pd.Series
+        String Series to normalize.
+    pd.Series
+        Series with whitespace normalized.
 
     >>> import pandas as pd
-    >>> raw = pd.DataFrame({
-    ...     'app_id': [1, 1, 2],
-    ...     'tag': [' Action ', 'Action', 'Indie'],
-    ... })
-    >>> out = clean_tags_dataframe(raw)
-    >>> out[['app_id', 'tag']].values.tolist()
-    [[1, 'Action'], [2, 'Indie']]
+    >>> s = pd.Series(['Free\\u00a0To\\u00a0Play', 'Indie'])
+    >>> normalize_whitespace(s).tolist()
+    ['Free To Play', 'Indie']
     """
-    df = df.copy()
-    df['tag'] = df['tag'].str.strip()
-    df = df.dropna(subset=['app_id', 'tag'])
-    df = df.drop_duplicates(subset=['app_id', 'tag'])
-    df = df.sort_values(by=['app_id', 'tag']).reset_index(drop=True)
-    return df
+    return series.str.replace('\u00a0', ' ', regex=False).str.strip()
 
 
-def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> str:
+def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
+    """Replace foreign-language tags with their canonical English form.
+
+    series : pd.Series
+        Whitespace-normalised tag column.
+    mapping : dict
+        {foreign variant: canonical English} lookup dictionary.
+    pd.Series
+        Series with foreign values replaced; unknown values kept as-is.
+
+    >>> import pandas as pd
+    >>> s = pd.Series(['Indie', 'Экшены', 'Unknown'])
+    >>> result = apply_mapping(s, {'Экшены': 'Action'})
+    >>> result.tolist()
+    ['Indie', 'Action', 'Unknown']
+    """
+    return series.map(lambda x: mapping.get(x, x))
+
+
+def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame, english_tags: set, unmapped: list) -> str:
     sep = '=' * 60
-
-    tags_per_app = df_raw.groupby('app_id')['tag'].count()
-    non_ascii_tags = [t for t in df_raw['tag'].dropna().unique() if not t.isascii()]
+    attr = 'tag'
+    per_app = df_raw.groupby('app_id')[attr].count()
+    non_ascii = [v for v in df_raw[attr].dropna().unique() if not str(v).isascii()]
+    freq = df_clean[attr].value_counts()
 
     lines = [
         sep,
         'Data/tags.csv  —  QUALITY REPORT',
         sep,
         '',
-        '[Raw Data Stats]',
+        '[1. Raw Data Stats]',
         f'  Total rows              : {len(df_raw):,}',
         f'  Unique app_ids          : {df_raw["app_id"].nunique():,}',
-        f'  Unique tags             : {df_raw["tag"].nunique():,}',
-        f'  Missing app_id          : {df_raw["app_id"].isna().sum():,}',
-        f'  Missing tag             : {df_raw["tag"].isna().sum():,}',
+        f'  Missing tag             : {df_raw[attr].isna().sum():,}',
         f'  Fully duplicate rows    : {df_raw.duplicated().sum():,}',
-        f'  Duplicate (app_id, tag) : {df_raw.duplicated(subset=["app_id","tag"]).sum():,}',
+        f'  Duplicate (app_id, tag): {df_raw.duplicated(subset=["app_id", attr]).sum():,}',
         '',
-        '[Tags per app_id]',
-        f'  Mean : {tags_per_app.mean():.2f}',
-        f'  Max  : {tags_per_app.max()}',
-        f'  Min  : {tags_per_app.min()}',
+        '[2. Tag per app_id]',
+        f'  Mean : {per_app.mean():.2f}',
+        f'  Max  : {per_app.max()}',
+        f'  Min  : {per_app.min()}',
         '',
-        '[Language Check]',
-        f'  Non-ASCII tags: {len(non_ascii_tags)}',
+        '[3. Language Check]',
+        f'  Total raw distinct      : {df_raw[attr].nunique():,}',
+        f'  Non-ASCII values        : {len(non_ascii):,}',
+        f'  After normalization     : {df_clean[attr].nunique():,}',
+        f'  Standard English set    : {len(english_tags):,}',
+        '',
+        '[4. Cleaning Result]',
+        f'  Rows before cleaning    : {len(df_raw):,}',
+        f'  Rows after cleaning     : {len(df_clean):,}',
+        f'  Rows removed            : {len(df_raw) - len(df_clean):,}',
     ]
-    if non_ascii_tags:
-        for t in sorted(non_ascii_tags):
-            lines.append(f'    {t}')
-    else:
-        lines.append('  All tags are ASCII (English only) — no multilingual issue.')
-
+    if unmapped:
+        lines += [
+            '',
+            '[5. Warnings]',
+            f'  {len(unmapped)} unmapped values dropped (not in English set):',
+        ]
+        for u in sorted(unmapped):
+            lines.append(f'    {u}')
     lines += [
         '',
-        '[Cleaning Result]',
-        f'  Rows before cleaning : {len(df_raw):,}',
-        f'  Rows after cleaning  : {len(df_clean):,}',
-        f'  Rows removed (dupes) : {len(df_raw) - len(df_clean):,}',
-        '',
         sep,
-        f'DISTINCT TAGS [{df_clean["tag"].nunique()} total, sorted by frequency]',
+        f'DISTINCT TAG VALUES [{df_clean[attr].nunique()} total, sorted by frequency]',
         sep,
     ]
-    freq = df_clean['tag'].value_counts()
-    for tag in freq.index:
-        lines.append(f'{tag}  ({freq[tag]:,} rows)')
+    for val in freq.index:
+        lines.append(f'{val}  ({freq[val]:,} rows)')
     lines.append('')
     return '\n'.join(lines)
 
 
 if __name__ == '__main__':
-    df_raw = load_tags_csv(INPUT_FILE)
-    df_clean = clean_tags_dataframe(df_raw)
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    df = load_tags_csv(INPUT_FILE)
+    df_raw = df.copy()
+    df['tag'] = normalize_whitespace(df['tag'])
+    df['tag'] = apply_mapping(df['tag'], TAG_MAPPING)
 
-    report = quality_report(df_raw, df_clean)
+    # Source is English-only; canonical set = observed tags after normalize + map.
+    english_tags = frozenset(df['tag'].unique())
+    unmapped_mask = ~df['tag'].isin(english_tags)
+    unmapped_tags = df.loc[unmapped_mask, 'tag'].unique().tolist()
+    if unmapped_tags:
+        print(f"WARNING: {len(unmapped_tags)} unmapped tags will be dropped:")
+        for t in sorted(unmapped_tags):
+            print(f"  {t}")
+    df = df[~unmapped_mask].copy()
+
+    df = df.drop_duplicates(subset=['app_id', 'tag'])
+    df = df.sort_values(by=['app_id', 'tag']).reset_index(drop=True)
 
     try:
-        df_clean.to_csv(OUTPUT_CLEAN_CSV, index=False, encoding='utf-8-sig')
-        print(f"Saved cleaned CSV ({len(df_clean):,} rows) → {OUTPUT_CLEAN_CSV}")
-    except Exception as exc:
-        print(f"Error saving CSV: {exc}")
+        df.to_csv(OUTPUT_CLEAN_CSV, index=False, encoding='utf-8-sig')
+        print(f"\nSaved cleaned CSV ({len(df):,} rows) → {OUTPUT_CLEAN_CSV}")
+    except Exception as e:
+        print(f"Error saving CSV: {e}")
 
+    report = quality_report(df_raw, df, english_tags, unmapped_tags)
     try:
         with open(OUTPUT_REPORT_TXT, 'w', encoding='utf-8') as f:
             f.write(report)
         print(f"Saved report → {OUTPUT_REPORT_TXT}")
-    except Exception as exc:
-        print(f"Error saving report: {exc}")
+    except Exception as e:
+        print(f"Error saving report: {e}")

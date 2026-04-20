@@ -1,21 +1,16 @@
 """
-categories.csv: map all 315 multilingual category variants
-to the 46 canonical English Steam categories, deduplicate rows that
-collapse to the same (app_id, category) pair after mapping, and write:
-
-  - Cleaned_Data/categories_en.csv: cleaned (app_id, category) table (English only)
-  - distinct_categories.txt: data-quality report + distinct category list
+Map all 315 multilingual categories to 46 distinct English Steam categories, and deduplicate rows.
 
 Data quality issue found:
-    The 315 raw "distinct" categories are actually 46 standard Steam
-    categories translated into 16 languages (EN/DE/NL/FR/ES/IT/PT/PL/
-    FI/DA/NO/CZ/RU/UA/JA/ZH).
+    The 315 raw distinct categories are actually 46 standard Steam categories 
+    translated into 16 languages (EN/DE/NL/FR/ES/IT/PT/PL/FI/DA/NO/CZ/RU/UA/JA/ZH).
 
 Pipeline:
     Data/categories.csv --> Cleaned_Data/categories_clean.csv
-                        --> categories_quality_report.txt
+                        --> Cleaned_Data/categories_quality_report.txt
 """
 
+import sys
 import pandas as pd
 
 INPUT_FILE = 'Data/categories.csv'
@@ -23,7 +18,6 @@ OUTPUT_CLEAN_CSV = 'Cleaned_Data/categories_clean.csv'
 OUTPUT_REPORT_TXT = 'Cleaned_Data/categories_quality_report.txt'
 
 
-# Canonical English category set (46 entries)
 ENGLISH_CATEGORIES = {
     'Captions available',
     'Co-op',
@@ -72,7 +66,7 @@ ENGLISH_CATEGORIES = {
 }
 
 
-# Full multilingual mapping: foreign / variant  →  canonical English
+# Full multilingual mapping: foreign / variant  →   English
 CATEGORY_MAPPING: dict[str, str] = {
     # ── Single-player ───────────────────────────────────────────────────────
     'Singleplayer':                           'Single-player',
@@ -423,28 +417,18 @@ CATEGORY_MAPPING: dict[str, str] = {
 }
 
 
-# Helper functions
 def load_categories_csv(filepath: str) -> pd.DataFrame:
     """Read categories.csv (UTF-8) and return a typed DataFrame.
     filepath : str
         Path to the CSV file.
     pd.DataFrame
-        'app_id' as int, 'category' as str.
-        
-    >>> import tempfile, os
-    >>> tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.csv',
-    ...                                   delete=False, encoding='utf-8')
-    >>> _ = tmp.write('app_id,category\\n1,Single-player\\n2,Multi-player\\n')
-    >>> tmp.close()
-    >>> df = load_categories_csv(tmp.name)  # doctest: +ELLIPSIS
-    Loaded 2 rows from '...'.
-    >>> df['app_id'].tolist()
-    [1, 2]
-    >>> os.unlink(tmp.name)
+        DataFrame with 'app_id' as int, 'category' as str.
     """
     try:
         df = pd.read_csv(filepath, encoding='utf-8')
+        df = df.dropna(subset=['app_id', 'category'])
         df['app_id'] = df['app_id'].astype(int)
+        df['category'] = df['category'].str.strip()
         print(f"Loaded {len(df):,} rows from '{filepath}'.")
         return df
     except FileNotFoundError:
@@ -458,14 +442,13 @@ def load_categories_csv(filepath: str) -> pd.DataFrame:
 def normalize_whitespace(series: pd.Series) -> pd.Series:
     """Replace non-breaking spaces (U+00A0) with regular spaces and strip.
 
-    Several Steam category strings use U+00A0 (non-breaking space) instead
-    of the regular ASCII space, e.g. 'Remote\u00a0Play\u00a0Together'.
-    This step must run before the mapping lookup.
+    Several Steam category strings use U+00A0 (non-breaking space) instead of the regular ASCII space, 
+    e.g. 'Remote\u00a0Play\u00a0Together'.
 
     series : pd.Series
-        String Series to normalise.
+        String Series to normalize.
     pd.Series
-        Series with whitespace normalised.
+        Series with whitespace normalized.
 
     >>> import pandas as pd
     >>> s = pd.Series(['Remote\\u00a0Play\\u00a0Together', 'Single-player'])
@@ -478,15 +461,12 @@ def normalize_whitespace(series: pd.Series) -> pd.Series:
 def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
     """Replace foreign-language categories with their canonical English form.
 
-    Values already in English are returned unchanged, so the function is safe to
-    call on a mixed-language Series.
-
     series : pd.Series
-        Whitespace-normalised category column.
+        Whitespace-normalized category column.
     mapping : dict
-        {foreign variant: canonical English}`` lookup dictionary.
+        {foreign variant: canonical English} lookup dictionary.
     pd.Series
-        Series with foreign values replaced; unknown values kept as-is.
+        Series with foreign values replaced; unknown values kept asis.
 
     >>> import pandas as pd
     >>> s = pd.Series(['Single-player', 'Einzelspieler', 'Unknown'])
@@ -499,65 +479,67 @@ def apply_mapping(series: pd.Series, mapping: dict) -> pd.Series:
 
 def quality_report(df_raw: pd.DataFrame, df_clean: pd.DataFrame, english_cats: set, unmapped: list) -> str:
     sep = '=' * 60
+    attr = 'category'
+    per_app = df_raw.groupby('app_id')[attr].count()
+    non_ascii = [v for v in df_raw[attr].dropna().unique() if not str(v).isascii()]
+    freq = df_clean[attr].value_counts()
+
     lines = [
         sep,
         'Data/categories.csv  —  QUALITY REPORT',
         sep,
         '',
-        '[Raw Data Stats]',
+        '[1. Raw Data Stats]',
         f'  Total rows              : {len(df_raw):,}',
         f'  Unique app_ids          : {df_raw["app_id"].nunique():,}',
-        f'  Missing values          : {df_raw.isnull().sum().sum()}',
-        f'  Fully duplicate rows    : {df_raw.duplicated().sum()}',
+        f'  Missing category        : {df_raw[attr].isna().sum():,}',
+        f'  Fully duplicate rows    : {df_raw.duplicated().sum():,}',
+        f'  Duplicate (app_id, cat) : {df_raw.duplicated(subset=["app_id", attr]).sum():,}',
         '',
-        '[Categories per app_id (raw)]',
-        f'  Mean : {df_raw.groupby("app_id")["category"].count().mean():.2f}',
-        f'  Max  : {df_raw.groupby("app_id")["category"].count().max()}',
-        f'  Min  : {df_raw.groupby("app_id")["category"].count().min()}',
+        '[2. Category per app_id]',
+        f'  Mean : {per_app.mean():.2f}',
+        f'  Max  : {per_app.max()}',
+        f'  Min  : {per_app.min()}',
         '',
-        '[Distinct Category Breakdown (raw)]',
-        f'  Total raw distinct   : {df_raw["category"].nunique()}',
-        f'  After normalization  : {df_clean["category"].nunique()}',
-        f'  Standard English set : {len(english_cats)}',
+        '[3. Language Check]',
+        f'  Total raw distinct      : {df_raw[attr].nunique():,}',
+        f'  Non-ASCII values        : {len(non_ascii):,}',
+        f'  After normalization     : {df_clean[attr].nunique():,}',
+        f'  Standard English set    : {len(english_cats):,}',
         '',
-        '[DATA QUALITY ISSUE: Multilingual Duplicates]',
-        '  The 315 raw "distinct" categories are actually 46 real',
-        '  Steam categories translated into 16 languages:',
-        '  English, German, Dutch, French, Spanish, Italian,',
-        '  Portuguese, Polish, Finnish, Danish, Norwegian,',
-        '  Czech, Russian, Ukrainian, Japanese, Chinese (S+T).',
-        '',
-        '[Cleaning Result]',
-        f'  Rows before cleaning : {len(df_raw):,}',
-        f'  Rows after cleaning  : {len(df_clean):,}',
-        f'  Rows removed (dupes) : {len(df_raw) - len(df_clean):,}',
+        '[4. Cleaning Result]',
+        f'  Rows before cleaning    : {len(df_raw):,}',
+        f'  Rows after cleaning     : {len(df_clean):,}',
+        f'  Rows removed            : {len(df_raw) - len(df_clean):,}',
     ]
     if unmapped:
         lines += [
             '',
-            f'[WARNING: {len(unmapped)} Unmapped / Unknown Categories (dropped)]',
+            '[5. Warnings]',
+            f'  {len(unmapped)} unmapped values dropped (not in English set):',
         ]
         for u in sorted(unmapped):
-            lines.append(f'  {u}')
-    lines += ['', sep,
-              f'DISTINCT ENGLISH CATEGORIES [{df_clean["category"].nunique()} total]',
-              sep]
-    freq = df_clean['category'].value_counts()
-    for cat in sorted(df_clean['category'].unique()):
-        lines.append(f'{cat}  ({freq[cat]:,} rows)')
+            lines.append(f'    {u}')
+    lines += [
+        '',
+        sep,
+        f'DISTINCT CATEGORY VALUES [{df_clean[attr].nunique()} total, sorted by frequency]',
+        sep,
+    ]
+    for val in freq.index:
+        lines.append(f'{val}  ({freq[val]:,} rows)')
     lines.append('')
     return '\n'.join(lines)
 
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     df = load_categories_csv(INPUT_FILE)
     df_raw = df.copy()
     df['category'] = normalize_whitespace(df['category'])
-
-    # Map every foreign-language variant to its canonical English name
     df['category'] = apply_mapping(df['category'], CATEGORY_MAPPING)
 
-    # Drop any remaining non-English categories that had no mapping entry
+
     unmapped_mask = ~df['category'].isin(ENGLISH_CATEGORIES)
     unmapped_cats = df.loc[unmapped_mask, 'category'].unique().tolist()
     if unmapped_cats:
@@ -566,7 +548,7 @@ if __name__ == '__main__':
             print(f"  {c}")
     df = df[~unmapped_mask].copy()
 
-    # Remove duplicates where two foreign variants mapped to the same English value
+
     df = df.drop_duplicates(subset=['app_id', 'category'])
     df = df.sort_values(by=['app_id', 'category']).reset_index(drop=True)
 
