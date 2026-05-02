@@ -47,3 +47,8 @@ The analysis utilizes the following datasets:
 * **Statistical Analysis:** Correlation matrices and variance analysis for sales drivers.
 * **Sentiment Analysis:** NLP-based processing of review text to identify trends regarding microtransactions and DLC.
 * **Visualization:** Generating longitudinal trend lines and genre distribution charts.
+
+---
+
+## Citations
+* **Claude:**
