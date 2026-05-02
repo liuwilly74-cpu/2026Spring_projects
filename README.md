@@ -26,8 +26,8 @@ This research conducts a comprehensive analysis to identify correlations between
 ---
 
 ## Hypotheses
-* **DLC Impact:** Games with 5+ paid DLC packs have a statistically lower Steam review score than comparable games in the same genre with no DLC.
-* **Microtransaction Sentiment:** Negative sentiment toward microtransactions in reviews increased significantly after November 2017 (following the *Star Wars Battlefront II* controversy).
+* **Genre Significance:** Certain genres command significantly higher prices than others. For example, RPGs and Strategy games might be priced higher than Casual or Indie games.
+* **Microtransaction Sentiment:** Negative sentiment toward microtransactions in reviews increased significantly after November 2017.
 * **Monetization Models:** Free-to-play (F2P) games with cosmetic-only monetization score comparably to paid games, while "pay-to-win" F2P games score significantly lower.
 
 ---
