@@ -51,4 +51,5 @@ The analysis utilizes the following datasets:
 ---
 
 ## Citations
-* **Claude:**
+* **Claude:** https://claude.ai/share/29fe8991-34c9-49fe-88ec-993e54b5df7e
+* **Medium:** https://medium.com/@mattdamberg/data-cleaning-with-python-665930f3215a
