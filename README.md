@@ -1,5 +1,4 @@
-# Video Game Sales Analysis  
-
+# Video Games Analysis Centered Around Review Ratings, Genre Specification, and More
 ## Team Members
 * **Ziyang Liu** | [liuwilly74-cpu](https://github.com/liuwilly74-cpu)
 * **Arij Ahmed** | [arijahmed32](https://github.com/arijahmed32)
@@ -18,10 +17,8 @@ This research conducts a comprehensive analysis to identify correlations between
 ### Key Research Questions
 1. **Genre Evolution:** Which niche genres have transitioned to the mainstream over the past decade? What do their lifecycle trajectories look like?
 2. **Publisher Specialization:** Is there a statistically significant correlation between a publisher’s genre focus and their financial performance?
-3. **Sales Variance:** Beyond genre, which factor (Platform, Scores, or Seasonality) best explains sales fluctuations?
-4. **Indie Breakthroughs:** Through what types of genre innovation (e.g., Roguelikes, Cozy Games) do indie titles achieve market breakthroughs?
-5. **Predictive Keywords:** Which specific "tags" or "keywords" serve as the most reliable leading indicators for a breakout in sales?
-6. **Market Distribution:** What is the statistical genre distribution among the Global Top 100 best-selling games across longitudinal trend lines?
+3. **Indie Breakthroughs:** Through what types of genre innovation (e.g., Roguelikes, Cozy Games) do indie titles achieve market breakthroughs?
+4. **Market Distribution:** What is the statistical genre distribution among the Global Top 100 best-selling games across longitudinal trend lines?
 
 ---
 
