@@ -1,4 +1,4 @@
-# Video Games Analysis Centered Around Review Ratings, Genre Specification, and More
+# Video Games Analysis Centered Around Review Ratings, Genre Specification, and Monetization Models
 ## Team Members
 * **Ziyang Liu** | [liuwilly74-cpu](https://github.com/liuwilly74-cpu)
 * **Arij Ahmed** | [arijahmed32](https://github.com/arijahmed32)
@@ -12,7 +12,7 @@
 ## Project Overview
 **Project Type:** Type III Project (Original Data Analysis)
 
-This research conducts a comprehensive analysis to identify correlations between video game sales and various attributes, including genre, platform synergy, critic-user sentiment, and seasonal release windows. By leveraging historical and contemporary data, we aim to map the evolution of the gaming market and identify the drivers behind commercial success.
+This research conducts a comprehensive analysis that examines how Steam player ratings, Metacritic scores, monetization structures, and more all relate to one another across two separate datasets. By leveraging historical and contemporary data, we aim to map the evolution of the gaming market and identify the drivers behind commercial success.
 
 ### Key Research Questions
 1. **Genre Evolution:** Which niche genres have transitioned to the mainstream over the past decade? What do their lifecycle trajectories look like?
@@ -31,7 +31,7 @@ This research conducts a comprehensive analysis to identify correlations between
 ## Data Sources
 The analysis utilizes the following datasets:
 
-1.  **Steam Insights (October 2024):** A comprehensive database including game details, genres, reviews, tags, and SteamSpy insights.  
+1.  **Steam Insights (October 2024):** A comprehensive database including game details, genres, reviews, tags, and SteamSpy insights for over 140,000 games.
     [Source: NewbieIndieGameDev/steam-insights](https://github.com/NewbieIndieGameDev/steam-insights)
 2.  **Video Game Sales Dataset:** A dataset analyzing sales data from more than 16,500 games.  
     [Source: Kaggle - Video Game Sales](https://www.kaggle.com/datasets/anandshaw2001/video-game-sales/data)
