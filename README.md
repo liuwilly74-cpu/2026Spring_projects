@@ -24,8 +24,7 @@ This research conducts a comprehensive analysis that examines how Steam player r
 
 ## Hypotheses
 * **Genre Significance:** Certain genres command significantly higher prices than others. For example, RPGs and Strategy games might be priced higher than Casual or Indie games.
-* **Monetization Models:** Free-to-play (F2P) games with cosmetic-only monetization score comparably to paid games, while "pay-to-win" F2P games score significantly lower.
-
+* **Monetization Models:** Free to Play (F2P) games with In-App-Purchases (IAP) have a significantly lower Steam positive review rate than F2P games without any IAP. 
 ---
 
 ## Data Sources
