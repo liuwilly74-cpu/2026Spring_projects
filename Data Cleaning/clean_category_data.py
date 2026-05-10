@@ -13,9 +13,9 @@ Pipeline:
 import sys
 import pandas as pd
 
-INPUT_FILE = 'Data/categories.csv'
-OUTPUT_CLEAN_CSV = 'Cleaned_Data/categories_clean.csv'
-OUTPUT_REPORT_TXT = 'Cleaned_Data/categories_quality_report.txt'
+INPUT_FILE = '../Data/categories.csv'
+OUTPUT_CLEAN_CSV = '../Cleaned_Data/categories_clean.csv'
+OUTPUT_REPORT_TXT = '../Cleaned_Data/categories_quality_report.txt'
 
 
 ENGLISH_CATEGORIES = {

@@ -12,9 +12,9 @@ Pipeline:
 import sys
 import pandas as pd
 
-INPUT_FILE = 'Data/tags.csv'
-OUTPUT_CLEAN_CSV = 'Cleaned_Data/tags_clean.csv'
-OUTPUT_REPORT_TXT = 'Cleaned_Data/tags_quality_report.txt'
+INPUT_FILE = '../Data/tags.csv'
+OUTPUT_CLEAN_CSV = '../Cleaned_Data/tags_clean.csv'
+OUTPUT_REPORT_TXT = '../Cleaned_Data/tags_quality_report.txt'
 
 
 # Reserved for foreign / variant tag strings → English (currently empty).

@@ -15,10 +15,10 @@ from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 
 
-INPUT_GAMES = 'Cleaned_Data/games_clean.csv'
-INPUT_VGSALES = 'Data/vgsales.csv'
-OUTPUT_MATCHED = 'Cleaned_Data/games_vgsales_matched.csv'
-OUTPUT_QUALITY = 'Cleaned_Data/games_vgsales_match_quality.txt'
+INPUT_GAMES = '../Cleaned_Data/games_clean.csv'
+INPUT_VGSALES = '../Data/vgsales.csv'
+OUTPUT_MATCHED = '../Cleaned_Data/games_vgsales_matched.csv'
+OUTPUT_QUALITY = '../Cleaned_Data/games_vgsales_match_quality.txt'
 
 COL_STEAM_NAME = 'name'
 COL_STEAM_ID = 'app_id'

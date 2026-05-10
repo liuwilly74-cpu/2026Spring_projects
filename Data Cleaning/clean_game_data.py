@@ -19,10 +19,10 @@ Pipeline:
 
 import pandas as pd
 
-INPUT_GAMES = 'Data/games.csv'
-INPUT_INSIGHTS = 'Data/steamspy_insights.csv'
-OUTPUT_GAMES_CSV = 'Cleaned_Data/games_clean.csv'
-OUTPUT_GAMES_REPORT = 'Cleaned_Data/games_quality_report.txt'
+INPUT_GAMES = '../Data/games.csv'
+INPUT_INSIGHTS = '../Data/steamspy_insights.csv'
+OUTPUT_GAMES_CSV = '../Cleaned_Data/games_clean.csv'
+OUTPUT_GAMES_REPORT = '../Cleaned_Data/games_quality_report.txt'
 
 GAMES_KEEP = ['app_id', 'name', 'release_date', 'is_free']
 STEAMSPY_KEEP = ['app_id', 'developer', 'publisher', 'owners_range', 'price']

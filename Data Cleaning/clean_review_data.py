@@ -17,9 +17,9 @@ Pipeline:
 
 import pandas as pd
 
-INPUT_FILE = 'Data/reviews.csv'
-OUTPUT_CLEAN_CSV = 'Cleaned_Data/reviews_clean.csv'
-OUTPUT_REPORT_TXT = 'Cleaned_Data/reviews_quality_report.txt'
+INPUT_FILE = '../Data/reviews.csv'
+OUTPUT_CLEAN_CSV = '../Cleaned_Data/reviews_clean.csv'
+OUTPUT_REPORT_TXT = '../Cleaned_Data/reviews_quality_report.txt'
 
 MISSING_TOKENS = {'\\N', 'N', '', 'nan', 'NaN', 'None', '<NA>'}
 NUMERIC_COLUMNS = [
