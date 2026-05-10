@@ -45,6 +45,12 @@ The analysis utilizes the following datasets:
 
 ---
 
+## Instruction
+* If you want to try the data cleaning process and view the raw dataset quality report, you can execute the file in `Data Cleaning` folder.
+* Otherwise you can just execute either jupyter notebook file to view the data analysis.
+
+---
+
 ## Citations
 * **Claude:** https://claude.ai/share/29fe8991-34c9-49fe-88ec-993e54b5df7e
 * **Medium:** https://medium.com/@mattdamberg/data-cleaning-with-python-665930f3215a
