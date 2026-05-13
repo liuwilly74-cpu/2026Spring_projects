@@ -55,4 +55,4 @@ The analysis utilizes the following datasets:
 * **Claude:** https://claude.ai/share/29fe8991-34c9-49fe-88ec-993e54b5df7e
 * **Medium:** https://medium.com/@mattdamberg/data-cleaning-with-python-665930f3215a
 * AI assistance on category, tag, genre mapping(Translating foreign languages into standardized english format)
-* AI assistance on analysis scope brainstrom
+* AI assistance on analysis scope brainstorm. Cursor AI agent was used for this. 
